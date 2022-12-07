@@ -21,12 +21,51 @@ class MenuBar(Frame):
 class PictureCanvas(Canvas):
     def __init__(self, master):
         super().__init__(master)
+        self.image = None
+        self.image_component_id = None
+        self.display_image_w = None
+        self.display_image_h = None
+        self.ratio = None
+        self.bind("<Button-1>", self.on_click)
+        self.bind("<Configure>", self.on_configure)
 
     def set_image(self, image: Image.Image):
-        imagetk = ImageTk.PhotoImage(image)
+        self.image = image
+        self.show_image(self.image)
+
+    def show_image(self, resized_image: Image.Image):
+        if self.image_component_id:
+            self.delete(self.image_component_id)
+        imagetk = ImageTk.PhotoImage(resized_image)
         _imagetk_list.append(imagetk)
-        a = self.create_image(0,0, image=imagetk)
-        print(a)
+        self.image_component_id = self.create_image(
+            resized_image.width / 2, resized_image.height / 2, image=imagetk
+        )
+
+    def change_image_size(self, width: int, height: int):
+        if not self.image:
+            return
+        self.ratio = min(
+            float(width) / float(self.image.width),
+            float(height) / float(self.image.height),
+        )
+        print(self.ratio)
+        self.display_image_w = int(self.image.width * self.ratio)
+        self.display_image_h = int(self.image.height * self.ratio)
+        resized_image = self.image.copy().resize(
+            (self.display_image_w, self.display_image_h)
+        )
+        self.show_image(resized_image)
+
+    def on_configure(self, e):
+        canvas_width = e.width
+        canvas_height = e.height
+        self.change_image_size(canvas_width, canvas_height)
+
+    def on_click(self, e):
+        x = e.x / self.display_image_w
+        y = e.y / self.display_image_h
+        print(x, y)
 
 
 class MainWindow(Tk):
@@ -43,4 +82,3 @@ class MainWindow(Tk):
 
 if __name__ == "__main__":
     main_window = MainWindow()
-    main_window.mainloop()
