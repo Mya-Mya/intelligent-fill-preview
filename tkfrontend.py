@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import Tk, Frame, Canvas, Label, Button, filedialog
+from tkinter import Tk, Frame, Canvas, Label, Button, filedialog, Entry
 from PIL import ImageTk, Image
 from intelligent_filler import IntelligentFiller
 from pathlib import Path
@@ -13,10 +13,29 @@ class MenuBar(Frame):
     def __init__(self, master, set_image):
         super().__init__(master)
         self.set_image = set_image
-        label = Label(self, text="Intelligent Fill Preview")
-        label.grid(column=0, row=0)
         open_button = Button(self, text="Open File", command=self.on_open_button_press)
-        open_button.grid(column=1, row=0)
+        open_button.grid(column=0, row=0)
+
+        def validate_color_power(x):
+            return 0 <= int(x) <= 255
+
+        validate_color_power_command = self.register(validate_color_power)
+
+        Label(self, text="R").grid(column=1, row=0)
+        self.r_input = Entry(
+            self, validate="key", validatecommand=(validate_color_power_command, "%P")
+        )
+        self.r_input.grid(column=1, row=1)
+        Label(self, text="G").grid(column=2, row=0)
+        self.g_input = Entry(
+            self, validate="key", validatecommand=(validate_color_power_command, "%P")
+        )
+        self.g_input.grid(column=2, row=1)
+        Label(self, text="B").grid(column=3, row=0)
+        self.b_input = Entry(
+            self, validate="key", validatecommand=(validate_color_power_command, "%P")
+        )
+        self.b_input.grid(column=3, row=1)
 
     def on_open_button_press(self):
         fn = filedialog.askopenfilename(filetypes=[("Image", "*")])
@@ -24,6 +43,13 @@ class MenuBar(Frame):
             return
         image = Image.open(fn)
         self.set_image(image)
+
+    def get_color(self) -> tuple:
+        return (
+            int(self.r_input.get() or 0),
+            int(self.g_input.get() or 0),
+            int(self.b_input.get() or 0),
+        )
 
 
 class PictureCanvas(Canvas):
@@ -89,10 +115,13 @@ class MainWindow(Tk):
         self.geometry("400x400")
         self.picture_canvas = PictureCanvas(self, self.fill_image)
         self.picture_canvas.pack(expand=True, fil=tk.BOTH)
-        MenuBar(self, set_image=self.picture_canvas.set_image).pack()
+        self.menu_bar = MenuBar(self, set_image=self.picture_canvas.set_image)
+        self.menu_bar.pack()
 
     def fill_image(self, image, x, y):
-        self.picture_canvas.set_image(filler.fill(image, x, y, 255, 0, 0, 10))
+        self.picture_canvas.set_image(
+            filler.fill(image, x, y, *self.menu_bar.get_color(), 10)
+        )
 
 
 if __name__ == "__main__":
