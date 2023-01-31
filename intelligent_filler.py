@@ -1,11 +1,29 @@
 from filler import Filler
 from normal_filler import NormalFiller
-from utils import replace_changed_region
-from PIL.Image import Image, fromarray
+from PIL.Image import Image, fromarray, composite
 from pathlib import Path
 from tensorflow import keras, Tensor
-from numpy import ones, ndarray, asarray, cast, int32
+from numpy import ones, ndarray, asarray, cast, int32, any
 from hashlib import sha1
+from iftypes import Color
+
+
+def replace_changed_region(dst: Image, before: Image, after: Image) -> Image:
+    """
+    Extract the changed parts from `after` compared to `before`. Then override them to `dst`.
+    response = `dst` + `after` * (`after` != `before`)
+    """
+
+    before = before.convert("RGB")
+    after = after.convert("RGB")
+    b = asarray(before)
+    a = asarray(after)
+    delta = a - b
+    changed = any(delta, axis=2)
+    mask = fromarray(changed).convert("L")
+    dst = dst.convert("RGB")
+    replaced = composite(after, dst, mask)
+    return replaced
 
 
 class IntelligentFiller(Filler):
