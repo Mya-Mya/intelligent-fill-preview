@@ -2,7 +2,6 @@ from filler import Filler
 from normal_filler import NormalFiller
 from PIL.Image import Image, fromarray, composite
 from pathlib import Path
-from tensorflow import keras, Tensor
 from numpy import ones, ndarray, asarray, cast, int32, any
 from hashlib import sha1
 from iftypes import Color
@@ -29,6 +28,7 @@ def replace_changed_region(dst: Image, before: Image, after: Image) -> Image:
 class IntelligentFiller(Filler):
     def __init__(self, model_path: Path) -> None:
         super().__init__()
+        from tensorflow import keras # TAKES A LONG TIME !
         self.model = keras.models.load_model(model_path)
         self.normal_filler = NormalFiller()
         self.line_closed_image_cache = {}
@@ -45,7 +45,7 @@ class IntelligentFiller(Filler):
         )
         input_image_np: ndarray = ones((height, width)) * input_image_mono
         model_input = input_image_np.reshape(1, height, width, 1)
-        model_output: Tensor = self.model(model_input)
+        model_output = self.model(model_input)
         output_height, output_width = model_output.shape[1:3]
         model_output_np = asarray(model_output).reshape(output_height, output_width)
         line_closed_image_np = cast[int32](model_output_np * 255.0)
