@@ -37,13 +37,13 @@ class IntelligentFiller(Filler):
         return line_closed_image
 
     def fill(
-        self, image: Image, x: int, y: int, r: int, g: int, b: int, diff: int
+        self, image: Image, x: int, y: int, color:Color, diff: int
     ) -> Image:
         line_closed_image = self.close_line(image)
 
         # Fill Line Closed Image
         filled_lined_closed_image = self.normal_filler.fill(
-            line_closed_image, x, y, r, g, b, diff
+            line_closed_image, x, y, color, diff
         )
 
         # Create Response
