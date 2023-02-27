@@ -1,46 +1,127 @@
-import tkinter as tk
-from tkinter import Tk, Frame, Canvas, Label,Button,filedialog
-from PIL import ImageTk, Image
+from ifrontend import IFrontend
+from presenter import Presenter
+from iftypes import Color, convert_color_to_hexcolor
+from PIL import Image
+from pathlib import Path
+from tkinter import (
+    filedialog,
+    messagebox,
+    colorchooser,
+    Tk,
+    Frame,
+    Button,
+    IntVar,
+    Radiobutton,
+    Scale,
+    BOTH,
+    LEFT,
+    RIGHT,
+    HORIZONTAL,
+)
+from imagecanvas import ImageCanvas
 
-_imagetk_list = []
-
-class MenuBar(Frame):
-    def __init__(self, master):
-        super().__init__(master)
-        label = Label(self,text="Intelligent Fill Preview")
-        label.grid(column=0,row=0)
-        open_button = Button(self,text="Open File",command=self.on_open_button_press)
-        open_button.grid(column=1,row=0)
-    
-    def on_open_button_press(self):
-        fn = filedialog.askopenfilename(filetypes=[("Image","*")])
-        if fn is None or fn=="":
-            return
-        
-        
-class PictureCanvas(Canvas):
-    def __init__(self, master):
-        super().__init__(master)
-
-    def set_image(self, image: Image.Image):
-        imagetk = ImageTk.PhotoImage(image)
-        _imagetk_list.append(imagetk)
-        a = self.create_image(0,0, image=imagetk)
-        print(a)
-
-
-class MainWindow(Tk):
-    def __init__(self):
+class TKFrontend(Tk, IFrontend):
+    def __init__(self) -> None:
         super().__init__()
         self.title("Intelligent Fill Preview")
-        self.geometry("400x400")
-        MenuBar(self).pack()
-        picture_canvas = PictureCanvas(self)
-        image:Image.Image = Image.open("sample/sample1.png")
-        picture_canvas.pack(expand=True, fil=tk.BOTH)
-        picture_canvas.set_image(image)
+        self.geometry("600x600")
+        self.init_components()
+        self.init_presenter()
+        self.mainloop()
 
+    def init_components(self)->None:
+        # Image Canvas
+        self.image_canvas = ImageCanvas(self, lambda x, y: self.on_click(x, y))
+        self.image_canvas.pack(expand=True, fill=BOTH)
 
-if __name__ == "__main__":
-    main_window = MainWindow()
-    main_window.mainloop()
+        # Menu Bar
+        menubar = Frame(self)
+        # Undo Button < Menu Bar
+        self.undo_button = Button(
+            menubar, text="Undo", command=lambda: self.presenter.on_undo_press()
+        )
+        self.undo_button.pack(side=LEFT)
+        # Open Image Button < Menu Bar
+        openimage_button = Button(
+            menubar,
+            text="Open",
+            command=lambda: self.presenter.on_open_imagefile_press(),
+        )
+        openimage_button.pack(side=LEFT)
+        # Fill Color Button < Menu Bar
+        self.fillcolor_button = Button(
+            menubar,
+            text="",
+            command=lambda: self.presenter.on_open_fillcolor_press(),
+            width=10,
+        )
+        self.fillcolor_button.pack(side=LEFT)
+        # Diff Scale < Menu Bar
+        self.diff_scale = Scale(
+            menubar,
+            orient=HORIZONTAL,
+            length=150,
+            width=20,
+            from_=0,
+            to=30,
+            resolution=1,
+            tickinterval=5,
+        )
+        self.diff_scale.configure(
+            command=lambda _: self.presenter.on_diff_selected(self.diff_scale.get())
+        )
+        self.diff_scale.pack(side=LEFT)
+        # Filler Radio Buttons < Menu Bar
+        _filler_choice = IntVar(self, 0)
+        use_normalfiller_rb = Radiobutton(
+            menubar,
+            text="Normal",
+            value=0,
+            variable=_filler_choice,
+            command=lambda: self.presenter.on_normal_filler_selected(),
+        )
+        use_intelligentfiller_rb = Radiobutton(
+            menubar,
+            text="Intelligent",
+            value=1,
+            variable=_filler_choice,
+            command=lambda: self.presenter.on_intelligent_filler_selected(),
+        )
+        use_normalfiller_rb.pack(side=RIGHT)
+        use_intelligentfiller_rb.pack(side=RIGHT)
+
+        menubar.pack()
+    
+    def init_presenter(self)->None:
+        self.presenter = Presenter(Path("./models/model1.h5"))
+        self.presenter.set_frontend(self)
+
+    def ask_opening_imagefile(self) -> None:
+        fn = filedialog.askopenfilename(filetypes=[("Image", "*")])
+        if fn is None or fn == "":
+            return
+        self.presenter.on_imagefile_specified(Path(fn))
+
+    def update_image(self, image: Image.Image) -> None:
+        self.image_canvas.set_image(image)
+
+    def show_message(self, message: str) -> None:
+        messagebox.showinfo("Intelligent Fill Preview", message=message)
+
+    def ask_fillcolor(self) -> None:
+        hexcolor = convert_color_to_hexcolor(self.presenter.fillcolor)
+        res = colorchooser.askcolor(hexcolor, title="Fill Color")
+        if res[0] is None:
+            return
+        color = Color(r=res[0][0], g=res[0][1], b=res[0][2])
+        self.presenter.on_fillcolor_specified(color)
+
+    def update_fillcolor(self, color: Color) -> None:
+        hexcolor = convert_color_to_hexcolor(color)
+        self.fillcolor_button.configure(bg=hexcolor)
+
+    def update_diff(self, diff: int) -> None:
+        self.diff_scale.set(diff)
+
+    def on_click(self, x: int, y: int) -> None:
+        self.presenter.on_image_click(x, y)
